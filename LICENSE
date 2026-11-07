@@ -1,0 +1,33 @@
+Guise
+Copyright (c) 2026 Maro. All rights reserved.
+
+You may download, install and use this add-on in World of Warcraft, and read its source code.
+
+Without prior written permission from the copyright holder you may not:
+  - redistribute this add-on or any part of it, modified or unmodified, including uploading it
+    to add-on sites or bundling it in compilations, UI packs or other add-ons;
+  - publish modified versions, forks or other derivative works;
+  - reuse its code, artwork or other assets in other projects.
+
+Contributions. By submitting a contribution to this project (code, artwork, data or anything
+else), you grant the copyright holder a perpetual, worldwide, irrevocable, royalty-free license
+to use, modify, distribute and relicense your contribution, including under future open-source
+licenses, and you confirm that you have the right to grant it.
+
+Third-party parts, under their own licences, not covered by the above:
+  - libs/ChatThrottleLib: ChatThrottleLib by Mikk, released into the public domain.
+  - media/fonts: Marcellus and Alegreya Sans, under the SIL Open Font License 1.1
+    (media/fonts/OFL-Marcellus.txt, media/fonts/OFL-AlegreyaSans.txt).
+  - The Mary Sue Protocol, which Guise implements from its public specification
+    (moonshyne.org/msp, released by its author as public domain, CC0). No code from other
+    MSP add-ons is included.
+
+Guise was inspired by TurtleRP, a roleplay add-on for Turtle WoW. It shares none of TurtleRP's
+code or artwork.
+
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
