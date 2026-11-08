@@ -6,7 +6,7 @@ local UI, Cache, Comms, Profile, Text = G.UI, G.Cache, G.Comms, G.Profile, G.Tex
 local Sheet = {}
 G.Sheet = Sheet
 
-local W, H = 700, 600
+local W, H = 720, 640
 local win, header, tabs, panes, foot, hideBtn
 local current, tab = nil, "glances"
 
@@ -36,6 +36,9 @@ local function buildHeader()
   header.portrait:SetPoint("TOPLEFT")
   header.initial = UI.Text(header.portrait, "title", 34)
   header.initial:SetPoint("CENTER")
+  header.icon = header.portrait:CreateTexture(nil, "ARTWORK")
+  header.icon:SetPoint("TOPLEFT", 1, -1)
+  header.icon:SetPoint("BOTTOMRIGHT", -1, 1)
   header.name = UI.Text(header, "title", 28)
   header.name:SetPoint("TOPLEFT", header.portrait, "TOPRIGHT", 14, 0)
   header.name:SetPoint("RIGHT")
@@ -53,7 +56,7 @@ local function buildHeader()
   header.facts:SetPoint("TOPLEFT", header.pill, "BOTTOMLEFT", 0, -6)
   header.facts:SetPoint("RIGHT")
   header.bounds = {}
-  for i = 1, 6 do header.bounds[i] = bound(header) end
+  for i = 1, #Profile.BOUNDS + 1 do header.bounds[i] = bound(header) end
 end
 
 local function fact(label, value)
@@ -64,7 +67,13 @@ local function fillHeader(view)
   local color = view.color and UI.hex(view.color) or UI.C.text
   header.initial:SetText(view.rpName:match("^[%z\1-\127\194-\244][\128-\191]*") or "?")
   UI.Color(header.initial, color)
-  header.name:SetText(view.rpName)
+  if view.icon and Cache.Visible(view) then
+    UI.SetIcon(header.icon, view.icon)
+    header.icon:Show() header.initial:Hide()
+  else
+    header.icon:Hide() header.initial:Show()
+  end
+  header.name:SetText((view.prefix and (view.prefix .. " ") or "") .. view.rpName)
   UI.Color(header.name, color)
   header.title:SetText(view.title or "")
   header.pill:SetStatus(view)
@@ -73,16 +82,33 @@ local function fillHeader(view)
   local visible = Cache.Visible(view)
   local facts = {}
   if visible then
-    for _, f in ipairs({ fact("Age", view.age), fact("Build", view.height), fact("Eyes", view.eyes), fact("Race", view.race),
-      fact("Class", view.class), fact("Style", view.style) }) do facts[#facts + 1] = f end
+    local eyes = view.eyes and view.eyeColor and ("|cff" .. view.eyeColor .. view.eyes .. "|r") or view.eyes
+    local guild = view.guildName and (view.guildName .. (view.guildRank and (", " .. view.guildRank) or ""))
+    local all = { fact("Age", view.age), fact("Height", view.height), fact("Weight", view.weight), fact("Eyes", eyes),
+      fact("Race", view.race), fact("Class", view.class), fact("Home", view.home), fact("Born", view.birthplace),
+      fact("Nickname", view.nickname), fact("House", view.house), fact("Relationship", view.relationship), fact("Guild", guild) }
+    for i = 1, 12 do if all[i] then facts[#facts + 1] = all[i] end end
   end
   header.facts:SetText(table.concat(facts, "    "))
+  -- the boundaries they shared, then their experience
+  local marks = {}
+  if visible and view.bounds then
+    for _, item in ipairs(view.bounds) do
+      if MARK[item.value] then
+        marks[#marks + 1] = { MARK[item.value] .. item.label, item.label .. ": " .. Profile.BOUND_WORD[item.value] }
+      end
+    end
+  end
+  if visible and view.experience then
+    marks[#marks + 1] = { "|cffc9a0ff*|r " .. view.experience,
+      "Roleplay experience: " .. (Profile.EXPERIENCE_HELP[view.experience] or view.experience) }
+  end
   local x = 0
   for i, b in ipairs(header.bounds) do
-    local item = visible and view.bounds and view.bounds[i]
-    if item then
-      b.text:SetText(MARK[item.value] .. item.label)
-      b.tip = item.label .. ": " .. Profile.BOUND_WORD[item.value]
+    local mark = marks[i]
+    if mark then
+      b.text:SetText(mark[1])
+      b.tip = mark[2]
       b:SetSize(b.text:GetStringWidth() + 16, 20)
       b:ClearAllPoints()
       b:SetPoint("TOPLEFT", header.facts, "BOTTOMLEFT", x, -8)
@@ -177,6 +203,16 @@ local function descriptionPane()
   function scroll:Fill(view)
     local text = view.description
     if view.history and view.history ~= "" then text = (text or "") .. "\n\n# History\n" .. view.history end
+    if view.motto then text = (text or "") .. "\n\n# Motto\n> " .. view.motto end
+    if #view.traits > 0 then
+      local lines = {}
+      for _, t in ipairs(view.traits) do
+        local left = t.value >= 0.5
+        local pct = math.floor((left and t.value or 1 - t.value) * 100 + 0.5)
+        lines[#lines + 1] = "**" .. (left and t.left or t.right) .. "** " .. pct .. "%   (" .. t.left .. " / " .. t.right .. ")"
+      end
+      text = (text or "") .. "\n\n# Personality\n" .. table.concat(lines, "\n")
+    end
     if not text or text == "" then
       html:SetText("<html><body><p>|cff7d7465No description" .. (view.own and "" or " yet. It's asked for when you open this") .. ".|r</p></body></html>")
     else
@@ -241,11 +277,11 @@ local function build()
     tab = key
     Sheet:Refresh()
   end)
-  tabs:SetPoint("TOPLEFT", 12, -150)
-  tabs:SetPoint("TOPRIGHT", -12, -150)
+  tabs:SetPoint("TOPLEFT", 12, -172)
+  tabs:SetPoint("TOPRIGHT", -12, -172)
   panes = { glances = glancePane(), desc = descriptionPane(), notes = notesPane(), mature = matureCover() }
   for _, p in pairs(panes) do
-    p:SetPoint("TOPLEFT", 18, -194)
+    p:SetPoint("TOPLEFT", 18, -216)
     p:SetPoint("BOTTOMRIGHT", -18, 44)
     p:Hide()
   end

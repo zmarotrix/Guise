@@ -1,15 +1,19 @@
 ## Interface: 16001
 ## Title: |cffc9a0ffGuise|r
-## Notes: Roleplay profiles: see who someone's character is, and let them see yours. Speaks the Mary Sue Protocol, so Total RP 3 and MyRolePlay users see you too. /guise
+## Notes: Roleplay profiles: see who someone's character is, and let them see yours. Speaks the Mary Sue Protocol through LibMSP, so Total RP 3, MyRolePlay and XRP users see you too. /guise
 ## Author: Maro
-## Version: 0.1.0
+## Version: 0.2.0
 ## X-License: All Rights Reserved
 ## Category: Roleplay
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## SavedVariables: GuiseDB
 ## SavedVariablesPerCharacter: GuiseCharDB
 
+libs\LibStub\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
 libs\ChatThrottleLib\ChatThrottleLib.lua
+libs\Chomp\Chomp.xml
+libs\LibMSP\LibMSP.lua
 
 core.lua
 text.lua

@@ -19,7 +19,8 @@ end
 
 ---The lines Guise adds, for the tooltip and for the editor's preview. Returns { first = "...", lines = { {text, wrap} } }.
 function Tooltip.Lines(view)
-  local out = { first = "|cff" .. nameColor(view) .. view.rpName .. "|r", lines = {} }
+  local name = (view.prefix and (view.prefix .. " ") or "") .. view.rpName
+  local out = { first = "|cff" .. nameColor(view) .. name .. "|r", lines = {} }
   local function add(text, wrap) out.lines[#out.lines + 1] = { text, wrap } end
   if not Cache.Visible(view) then
     local status = view.status and Profile.STATUS_LABEL[view.status]
@@ -50,6 +51,7 @@ function Tooltip.Lines(view)
     add("|cff" .. NOTE .. (view.note:match("^[^\n]*"):gsub("|", "||")) .. "|r", true)
   end
   if view.rel then add("|cff" .. MUTED .. view.rel:gsub("^%l", string.upper) .. "|r") end
+  if view.trial and not view.own then add("|cff" .. FAINT .. "Trial account|r") end
   return out
 end
 
@@ -66,7 +68,7 @@ local function decorate(tip, view)
 end
 
 function Tooltip.OnUnit(tip)
-  if tip ~= GameTooltip or not G.ready or not G.db.settings.tooltip or G.Quiet() then return end
+  if tip ~= GameTooltip or not G.ready or not G.db.settings.tooltip or G.Quiet() or Comms.standby then return end
   local ok, _, unit = pcall(tip.GetUnit, tip)
   if not ok or not unit or G.IsSecret(unit) then return end
   if not G.Call("UnitIsPlayer", unit) then return end

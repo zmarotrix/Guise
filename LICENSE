@@ -14,13 +14,19 @@ else), you grant the copyright holder a perpetual, worldwide, irrevocable, royal
 to use, modify, distribute and relicense your contribution, including under future open-source
 licenses, and you confirm that you have the right to grant it.
 
-Third-party parts, under their own licences, not covered by the above:
+Third-party parts, embedded unchanged and under their own licences, not covered by the above:
+  - libs/LibMSP: LibMSP by Etarna Moonshyne, Morgane "Ellypse" Parize and Justin Snelgrove,
+    under Creative Commons Zero (libs/LibMSP/LICENSE.txt). It implements the Mary Sue Protocol,
+    which Total RP 3, MyRolePlay and XRP share.
+  - libs/Chomp: Chomp Message Library, (c) Justin Snelgrove, under the ISC licence
+    (libs/Chomp/LICENSE.txt).
   - libs/ChatThrottleLib: ChatThrottleLib by Mikk, released into the public domain.
+  - libs/LibStub: LibStub, released into the public domain.
+  - libs/CallbackHandler-1.0: CallbackHandler-1.0, (c) the Ace3 Development Team, under the
+    Ace3 licence (BSD-style).
   - media/fonts: Marcellus and Alegreya Sans, under the SIL Open Font License 1.1
     (media/fonts/OFL-Marcellus.txt, media/fonts/OFL-AlegreyaSans.txt).
-  - The Mary Sue Protocol, which Guise implements from its public specification
-    (moonshyne.org/msp, released by its author as public domain, CC0). No code from other
-    MSP add-ons is included.
+Guise's own code reads the field formats Total RP 3 and XRP use, but contains none of their code.
 
 Guise was inspired by TurtleRP, a roleplay add-on for Turtle WoW. It shares none of TurtleRP's
 code or artwork.

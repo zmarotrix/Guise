@@ -1,139 +1,151 @@
--- The Mary Sue Protocol (MSP), written for Guise from the public spec (moonshyne.org/msp, CC0). It's the profile protocol
--- Total RP 3, MyRolePlay and XRP share, so their users and Guise's see each other's profiles.
+-- MSP field conventions: how Guise's profile maps onto the fields Total RP 3, MyRolePlay and XRP send, so each can read the
+-- others. The wire format itself (MSP2 over Chomp, checksum versions) belongs to LibMSP, embedded unchanged in libs/.
 --
--- Wire format, all add-on whispers:
---   prefix "MSP" for a one-part message; "MSP\1" first part, "MSP\2" middle parts, "MSP\3" last part of a longer one.
---   A message is chunks joined by "\1":
---     "?NA" or "?NA3"     request field NA (conditionally: only if my version isn't 3)
---     "NA3=Mira"          field NA is "Mira", version 3 ("NA3" alone: empty; "NA=Mira": unversioned)
---     "!NA3"              NA is still version 3: nothing changed
---   "?TT" asks for the tooltip bundle: VP, VA, NA, NH, NI, NT, RA, FR, FC, CU and TT itself.
---
--- This file is pure: it builds and reads text. comms.lua sends it.
+-- Where the 2011 spec and today's add-ons disagree, Guise follows the add-ons (Total RP 3's RegisterMSP and XRP agree):
+--   FC  status:      "1" out of character, "2" in character, "3" looking for contact, "4" storyteller
+--   FR  experience:  "1" new, "2" casual, "3" veteran, "4" guide for new roleplayers (anything else is free text)
+--   NA, RC, AE       may carry a |cffrrggbb colour around the text: that's how name, class and eye colours travel
+--   PE  glances:     "|TInterface\Icons\name:32:32|t\n#Title\n\nText", glances joined by "\n\n---\n\n"
+--   RI RD RR RM RO   accept injury, death, romance, crime, loss of control: "0" not shown, "1" yes, "2" no, "3" ask first
+--   RS  relationship "0" not shown, 1 single, 2 taken, 3 married, 4 divorced, 5 widowed
+--   PS  personality  [trait value="0.75" id="3"] or [trait value=".." left-name=".." right-name=".." ...]
+--   AH, AW           bare numbers are centimetres and kilograms
+-- Guise's own extras (other add-ons ignore them): XB boundaries in Guise's order, including walk-ups and combat; XM mature;
+-- XP OOC pronouns.
 
 local G = Guise
 local MSP = {}
 G.MSP = MSP
 
-MSP.PREFIX = "MSP"
-MSP.PREFIXES = { "MSP", "MSP\1", "MSP\2", "MSP\3" }
-MSP.PART = 255                  -- bytes per add-on message
-MSP.SEP = "\1"
-MSP.PROTOCOL = "1"
-
--- the bundle the spec names, plus the fields Guise's tooltip shows (other add-ons ignore the ones they don't know)
-MSP.TT = { "VP", "VA", "NA", "NH", "NI", "NT", "RA", "FR", "FC", "CU" }
-MSP.TT_EXTRA = { "PN", "CO", "RC", "XC", "XM", "XB", "XP" }
-MSP.IN_TT = {}
-for _, f in ipairs(MSP.TT) do MSP.IN_TT[f] = true end
-for _, f in ipairs(MSP.TT_EXTRA) do MSP.IN_TT[f] = true end
-
--- what each kind of look asks for, beyond TT
-MSP.FOR_TARGET = { "PE" }
-MSP.FOR_SHEET = { "PE", "DE", "HI", "AG", "AH", "AE", "AW", "MO", "HH", "HB" }
-
--- MSP's status (FC) and style (FR) codes
 MSP.STATUS = { ["1"] = "ooc", ["2"] = "ic", ["3"] = "lfc", ["4"] = "st" }
 MSP.STATUS_CODE = { ooc = "1", ic = "2", lfc = "3", st = "4" }
-MSP.STYLE = { ["1"] = "Regular", ["2"] = "Casual", ["3"] = "Full-time", ["4"] = "New" }
-MSP.STYLE_CODE = { Regular = "1", Casual = "2", New = "4" }   -- Veteran has no code: it travels as text
+MSP.EXPERIENCE = { ["1"] = "New", ["2"] = "Casual", ["3"] = "Veteran", ["4"] = "Guide" }
+MSP.EXPERIENCE_CODE = { New = "1", Casual = "2", Veteran = "3", Guide = "4" }
 
----"?FIELDver" for each field; ver from the versions we hold (0 or nil: ask for it outright).
-function MSP.Requests(fields, versions)
+-- boundary letter <-> Total RP 3's style code
+MSP.BOUND_CODE = { y = "1", n = "2", a = "3", ["-"] = "0" }
+MSP.BOUND_FROM = { ["1"] = "y", ["2"] = "n", ["3"] = "a" }
+
+MSP.RELATIONSHIP = { "Single", "Taken", "Married", "Divorced", "Widowed" }
+
+-- Total RP 3's built-in personality traits, by id: { left, right }. "value" leans to the left one (1 = fully left).
+MSP.TRAITS = {
+  { "Chaotic", "Lawful" }, { "Chaste", "Lustful" }, { "Forgiving", "Vindictive" }, { "Altruistic", "Selfish" },
+  { "Truthful", "Deceitful" }, { "Gentle", "Brutal" }, { "Superstitious", "Rational" }, { "Renegade", "Paragon" },
+  { "Cautious", "Impulsive" }, { "Ascetic", "Bon vivant" }, { "Valorous", "Spineless" },
+}
+
+-- The tooltip bundle. LibMSP folds a request for any field in someone's bundle into one "TT" request, and answers it with
+-- *its own* bundle, so Guise's must hold every field the others put in theirs, or they never get it: Total RP 3 adds
+-- CO, IC, PX, RC, RS, TR and PN; XRP adds PX, RC and CO. Guise's own (XM, XP) ride along.
+MSP.TOOLTIP = { "PX", "RC", "CO", "IC", "PN", "RS", "TR", "XM", "XP" }
+-- what a target or a sheet asks for, beyond the tooltip
+MSP.FOR_TARGET = { "TT", "PE", "XB", "RI", "RD", "RR", "RM", "RO" }
+MSP.FOR_SHEET = { "TT", "PE", "XB", "RI", "RD", "RR", "RM", "RO", "DE", "HI", "AG", "AH", "AW", "AE", "MO", "HH", "HB",
+  "NH", "NI", "RS", "PS", "PG", "PR", "PV", "MU" }
+
+-------------------------------------------------------------------------------------------
+-- Glances (PE)
+-------------------------------------------------------------------------------------------
+
+local PEEK_SEP = "\n\n---\n\n"
+
+local function iconCode(icon)
+  icon = tostring(icon or "")
+  if icon:match("^%d+$") then return "|T" .. icon .. ":32:32|t" end
+  if icon == "" then icon = "INV_Misc_QuestionMark" end
+  return "|TInterface\\Icons\\" .. icon .. ":32:32|t"
+end
+
+function MSP.EncodeGlances(glances)
   local out = {}
-  for _, field in ipairs(fields) do
-    local ver = versions and versions[field]
-    out[#out + 1] = "?" .. field .. ((ver and ver > 0) and tostring(ver) or "")
+  for _, g in ipairs(glances or {}) do
+    local parts = { iconCode(g.icon), "\n" }
+    if g.title and g.title ~= "" then parts[#parts + 1] = "#" .. g.title .. "\n\n" end
+    parts[#parts + 1] = g.text or ""
+    out[#out + 1] = table.concat(parts)
   end
-  return out
+  return table.concat(out, PEEK_SEP)
 end
 
----One field's answer: "FIELDver=value", "FIELDver" when empty.
-function MSP.Field(field, ver, value)
-  local v = (ver and ver > 0) and tostring(ver) or ""
-  if value == nil or value == "" then return field .. v end
-  return field .. v .. "=" .. value
+local function iconOf(str)
+  local icon = str:match("|TInterface\\Icons\\([^:|]+)[^|]*|t") or str:match("|T[Ii]nterface/[Ii]cons/([^:|]+)[^|]*|t")
+  if icon then return icon end
+  local id = str:match("|T(%d+)[^|]*|t")
+  if id then return id end
+  local path = str:match("|T([^:|]+)[^|]*|t")
+  if path then return path:match("([^\\/]+)$") end
+  return nil
 end
 
----Reads one chunk. Returns kind ("?", "!" or "="), field, version (number, 0 if none), value (for "=").
-function MSP.ParseChunk(chunk)
-  if type(chunk) ~= "string" then return nil end
-  local first = chunk:sub(1, 1)
-  if first == "?" or first == "!" then
-    local field, ver = chunk:match("^.(%u%u)(%d*)$")
-    if not field then return nil end
-    return first, field, tonumber(ver) or 0
-  end
-  local field, ver, rest = chunk:match("^(%u%u)(%d*)(.*)$")
-  if not field then return nil end
-  if rest ~= "" and rest:sub(1, 1) ~= "=" then return nil end
-  return "=", field, tonumber(ver) or 0, rest:sub(2)
-end
-
-function MSP.Split(text)
-  local chunks = {}
-  for chunk in (text .. MSP.SEP):gmatch("(.-)" .. MSP.SEP) do
-    if chunk ~= "" then chunks[#chunks + 1] = chunk end
-  end
-  return chunks
-end
-
----Chunks -> the messages to send: { {prefix, text}, ... }. One part uses "MSP"; more use MSP\1, \2..., \3.
-function MSP.Pack(chunks)
-  local text = table.concat(chunks, MSP.SEP)
-  if #text <= MSP.PART then return { { MSP.PREFIX, text } } end
-  local parts = {}
-  local i = 1
-  while i <= #text do
-    local j = i + MSP.PART - 1
-    -- don't split a UTF-8 character across parts: receivers join them back, but some show parts as they come
-    while j < #text and j > i and text:byte(j + 1) and text:byte(j + 1) >= 128 and text:byte(j + 1) < 192 do j = j - 1 end
-    parts[#parts + 1] = text:sub(i, j)
-    i = j + 1
-  end
+---Reads PE as Total RP 3, MyRolePlay and XRP write it. Up to five glances.
+function MSP.DecodeGlances(pe)
   local out = {}
-  for n, part in ipairs(parts) do
-    local prefix = n == 1 and "MSP\1" or (n == #parts and "MSP\3" or "MSP\2")
-    out[#out + 1] = { prefix, part }
+  if type(pe) ~= "string" or pe == "" then return out end
+  local index = 1
+  while index and #out < 5 do
+    local split, nextIndex = pe:find(PEEK_SEP, index, true)
+    local block = pe:sub(index, split and split - 1 or #pe)
+    index = nextIndex and nextIndex + 1 or nil
+    local icon = iconOf(block)
+    local title = block:match("%f[^\n%z]#+ *(.-) *%f[\n%z]")
+    local text = block:match("%f[^\n%z] *([^|#\n].-)%s*$") or ""
+    if icon or title or text ~= "" then
+      out[#out + 1] = { icon = icon or "INV_Misc_QuestionMark", title = title or "", text = text }
+    end
   end
   return out
 end
 
 -------------------------------------------------------------------------------------------
--- Answering requests from our own fields
+-- Personality traits (PS), read only
 -------------------------------------------------------------------------------------------
 
----Builds the reply to a list of request chunks.
----own = { fields = {NA = "..."}, versions = {NA = 3}, tt = ttVersion }
----Returns the reply chunks, and whether it holds a big field (DE, HI, PE), which callers pace.
-function MSP.Answer(requests, own)
-  local out, seen, big = {}, {}, false
-  local function add(field, asked)
-    if seen[field] then return end
-    seen[field] = true
-    local ver = own.versions[field] or 0
-    if asked and asked > 0 and asked == ver then
-      out[#out + 1] = "!" .. field .. ver
+function MSP.DecodeTraits(ps)
+  local out = {}
+  if type(ps) ~= "string" then return out end
+  for trait in ps:gmatch("%[trait [^%]]-%]") do
+    local t = {}
+    for key, value in trait:gmatch('([%w_-]+)="([^"]*)"') do t[key] = value end
+    local value = tonumber(t.value)
+    local id = tonumber(t.id)
+    local left, right
+    if id and MSP.TRAITS[id] then
+      left, right = MSP.TRAITS[id][1], MSP.TRAITS[id][2]
     else
-      out[#out + 1] = MSP.Field(field, ver, own.fields[field])
-      if field == "DE" or field == "HI" or field == "PE" then big = true end
+      left, right = t["left-name"], t["right-name"]
     end
-  end
-  for _, chunk in ipairs(requests) do
-    local kind, field, ver = MSP.ParseChunk(chunk)
-    if kind == "?" then
-      if field == "TT" then
-        if ver > 0 and ver == own.tt then
-          if not seen.TT then seen.TT = true out[#out + 1] = "!TT" .. own.tt end
-        else
-          for _, f in ipairs(MSP.TT) do add(f) end
-          for _, f in ipairs(MSP.TT_EXTRA) do add(f) end
-          if not seen.TT then seen.TT = true out[#out + 1] = MSP.Field("TT", own.tt) end
-        end
-      else
-        add(field, ver)
-      end
+    if value and left and right then
+      out[#out + 1] = { left = left, right = right, value = math.max(0, math.min(1, value)) }
     end
+    if #out >= 20 then break end
   end
-  return out, big
+  return out
+end
+
+-------------------------------------------------------------------------------------------
+-- Colours carried in text
+-------------------------------------------------------------------------------------------
+
+---"|cffrrggbbName|r" -> "Name", "rrggbb"
+function MSP.SplitColor(s)
+  if type(s) ~= "string" then return "", nil end
+  local color = s:match("|c%x%x(%x%x%x%x%x%x)")
+  s = s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  return s, color and color:lower() or nil
+end
+
+function MSP.WithColor(text, color)
+  if not text or text == "" then return text end
+  if color and color:match("^%x%x%x%x%x%x$") then return "|cff" .. color .. text .. "|r" end
+  return text
+end
+
+---Bare numbers in AH and AW are centimetres and kilograms.
+function MSP.Units(field, value)
+  if value and tonumber(value) then
+    if field == "AH" then return value .. " cm" end
+    if field == "AW" then return value .. " kg" end
+  end
+  return value
 end

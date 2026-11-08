@@ -150,19 +150,11 @@ local function pane()
   return f
 end
 
-local function identityPane()
-  local f = pane()
-  f.inputs = {}
-  local layout = {
-    { "NA", "Name (starts as your Forever name)", 1 }, { "NT", "Title", 2 },
-    { "PN", "Pronouns (IC)", 1 }, { "XP", "Pronouns (OOC, optional)", 2 },
-    { "AG", "Age", 1 }, { "AH", "Height and build", 2 },
-    { "AE", "Eyes", 1 }, { "RA", "Race (if not the game's)", 2 },
-    { "RC", "Class (if not the game's)", 1 },
-    { "CU", "Currently: what you're doing right now", 0 }, { "CO", "OOC note", 0 },
-  }
-  local y, col = 0, 0
-  for _, item in ipairs(layout) do
+-- a grid of labelled inputs: items = { {field, label, where} }, where 1 = left half, 2 = right half, 0 = full width
+local function inputGrid(f, items, top)
+  f.inputs = f.inputs or {}
+  local y, col = top or 0, 0
+  for _, item in ipairs(items) do
     local field, label, where = item[1], item[2], item[3]
     local input = UI.Input(f, label, Profile.FIELDS[field], function(text) Profile:Set(field, text) end)
     if where == 0 then
@@ -182,50 +174,167 @@ local function identityPane()
     end
     f.inputs[field] = input
   end
-  -- RC sits alone on its row: give the colour swatch the other half
-  f.colorLabel = UI.Text(f, "body", 12, UI.C.muted)
-  f.colorLabel:SetPoint("TOPLEFT", f, "TOP", 8, -(52 * 4))
-  f.colorLabel:SetText("Name colour")
-  f.swatch = UI.Button(f, "Choose", nil, function()
-    local p = Profile:Current()
-    local c = UI.hex(p.color or "c9a0ff")
-    local picker = rawget(_G, "ColorPickerFrame")
-    if not picker or not picker.SetupColorPickerAndShow then return end
-    local function apply()
-      local r, g, b = picker:GetColorRGB()
-      Profile:SetOption("color", string.format("%02x%02x%02x", r * 255 + 0.5, g * 255 + 0.5, b * 255 + 0.5))
-    end
-    local before = p.color
-    picker:SetupColorPickerAndShow({ r = c.r, g = c.g, b = c.b, swatchFunc = apply,
-      cancelFunc = function() Profile:SetOption("color", before) end })
-  end)
-  f.swatch:SetPoint("TOPLEFT", f.colorLabel, "BOTTOMLEFT", 0, -6)
-  f.swatchDot = f.swatch:CreateTexture(nil, "OVERLAY")
-  f.swatchDot:SetTexture(UI.WHITE)
-  f.swatchDot:SetSize(14, 14)
-  f.swatchDot:SetPoint("LEFT", f.swatch, "RIGHT", 8, 0)
+  if col ~= 0 then y = y + 52 end
+  return y
+end
+
+local function fillInputs(f)
+  local p = Profile:Current()
+  for field, input in pairs(f.inputs) do
+    if not input.box:HasFocus() then input:SetText(p.fields[field] or "") end
+  end
+end
+
+local function identityPane()
+  local f = pane()
+  local y = inputGrid(f, {
+    { "NA", "Name (starts as your Forever name)", 1 }, { "PX", "Prefix (Lady, Sergeant...)", 2 },
+    { "NT", "Title", 0 },
+    { "PN", "Pronouns (IC)", 1 }, { "XP", "Pronouns (OOC, optional)", 2 },
+    { "CU", "Currently: what you're doing right now", 0 }, { "CO", "OOC note", 0 },
+  })
   f.statusLabel = UI.Text(f, "body", 12, UI.C.muted)
-  f.statusLabel:SetPoint("TOPLEFT", 0, -y - 4)
+  f.statusLabel:SetPoint("TOPLEFT", 0, -y - 2)
   f.statusLabel:SetText("Status")
   local items = {}
   for _, s in ipairs(Profile.STATUSES) do items[#items + 1] = { s, Profile.STATUS_LABEL[s], Profile.STATUS_HELP[s] } end
   f.status = UI.Segmented(f, items, function(s) Profile:SetStatus(s) end)
   f.status:SetPoint("TOPLEFT", f.statusLabel, "BOTTOMLEFT", 0, -6)
+  -- profile icon and name colour, side by side
+  f.iconLabel = UI.Text(f, "body", 12, UI.C.muted)
+  f.iconLabel:SetPoint("TOPLEFT", f.status, "BOTTOMLEFT", 0, -14)
+  f.iconLabel:SetText("Profile icon")
+  f.icon = UI.IconButton(f, 40)
+  f.icon:SetPoint("TOPLEFT", f.iconLabel, "BOTTOMLEFT", 0, -6)
+  f.icon.onEnter = function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP") GameTooltip:SetText("Choose your profile's icon", 1, 1, 1) GameTooltip:Show() end
+  f.icon:SetScript("OnClick", function(self) openPicker(self, function(v) Profile:SetOption("icon", v) end) end)
+  f.colorLabel = UI.Text(f, "body", 12, UI.C.muted)
+  f.colorLabel:SetPoint("TOPLEFT", f.iconLabel, "TOPLEFT", 120, 0)
+  f.colorLabel:SetText("Name colour")
+  f.swatch = UI.Button(f, "Choose", nil, function()
+    local p = Profile:Current()
+    local c = UI.hex(p.color or Profile.ClassColor())
+    local picker = rawget(_G, "ColorPickerFrame")
+    if not picker or not picker.SetupColorPickerAndShow then return end
+    local before = p.color
+    local function apply()
+      local r, g, b = picker:GetColorRGB()
+      Profile:SetOption("color", string.format("%02x%02x%02x", r * 255 + 0.5, g * 255 + 0.5, b * 255 + 0.5))
+    end
+    picker:SetupColorPickerAndShow({ r = c.r, g = c.g, b = c.b, swatchFunc = apply,
+      cancelFunc = function() Profile:SetOption("color", before) end })
+  end)
+  f.swatch:SetPoint("TOPLEFT", f.colorLabel, "BOTTOMLEFT", 0, -8)
+  f.swatchDot = f.swatch:CreateTexture(nil, "OVERLAY")
+  f.swatchDot:SetTexture(UI.WHITE)
+  f.swatchDot:SetSize(14, 14)
+  f.swatchDot:SetPoint("LEFT", f.swatch, "RIGHT", 8, 0)
+  f.classColor = UI.Button(f, "Class colour", "quiet", function() Profile:SetOption("color", nil) end)
+  f.classColor:SetPoint("LEFT", f.swatchDot, "RIGHT", 8, 0)
   f.matureLabel = UI.Text(f, "body", 12, UI.C.muted)
-  f.matureLabel:SetPoint("TOPLEFT", f.status, "BOTTOMLEFT", 0, -14)
-  f.matureLabel:SetText("Mature profile: others see only your name and a \"mature\" pill until they choose to show mature profiles.")
+  f.matureLabel:SetPoint("TOPLEFT", f.icon, "BOTTOMLEFT", 0, -14)
   f.matureLabel:SetPoint("RIGHT")
+  f.matureLabel:SetText("Mature profile: others see only your name and a \"mature\" pill until they choose to show mature profiles.")
   f.mature = UI.Segmented(f, { { false, "No" }, { true, "Yes, mature" } }, function(v) Profile:SetOption("mature", v) end)
   f.mature:SetPoint("TOPLEFT", f.matureLabel, "BOTTOMLEFT", 0, -6)
   function f:Fill()
     local p = Profile:Current()
-    for field, input in pairs(self.inputs) do
-      if not input.box:HasFocus() then input:SetText(p.fields[field] or "") end
-    end
-    local c = UI.hex(p.color or "c9a0ff")
+    fillInputs(self)
+    UI.SetIcon(self.icon.icon, p.icon or "INV_Misc_QuestionMark")
+    local c = UI.hex(p.color or Profile.ClassColor())
     self.swatchDot:SetVertexColor(c.r, c.g, c.b)
+    self.classColor:SetShown(p.color ~= nil)
     self.status:Select(Profile:Status(), true)
     self.mature:Select(p.mature and true or false, true)
+  end
+  return f
+end
+
+local function detailsPane()
+  local f = pane()
+  local y = inputGrid(f, {
+    { "AG", "Age", 1 }, { "RA", "Race (if not the game's)", 2 },
+    { "AH", "Height", 1 }, { "AW", "Weight or build", 2 },
+    { "AE", "Eyes", 1 }, { "RC", "Class (if not the game's)", 2 },
+    { "NI", "Nickname", 1 }, { "NH", "House or family", 2 },
+    { "HH", "Home", 1 }, { "HB", "Birthplace", 2 },
+    { "MO", "Motto", 0 },
+  })
+  f.relLabel = UI.Text(f, "body", 12, UI.C.muted)
+  f.relLabel:SetPoint("TOPLEFT", 0, -y - 2)
+  f.relLabel:SetText("Relationship status")
+  local items = { { 0, "Not shown" } }
+  for i, r in ipairs(G.MSP.RELATIONSHIP) do items[#items + 1] = { i, r } end
+  f.rel = UI.Segmented(f, items, function(v) Profile:SetOption("relationship", v) end)
+  f.rel:SetPoint("TOPLEFT", f.relLabel, "BOTTOMLEFT", 0, -6)
+  function f:Fill()
+    fillInputs(self)
+    self.rel:Select(Profile:Current().relationship or 0, true)
+  end
+  return f
+end
+
+local function textPane(field, lead)
+  local f = pane()
+  f.lead = UI.Text(f, "body", 12.5, UI.C.faint)
+  f.lead:SetPoint("TOPLEFT")
+  f.lead:SetPoint("RIGHT")
+  f.lead:SetText(lead)
+  f.area = UI.TextArea(f, Profile.FIELDS[field], function(text) Profile:Set(field, text) end)
+  f.area:SetPoint("TOPLEFT", 0, -38)
+  f.area:SetPoint("BOTTOMRIGHT", 0, 20)
+  f.count = UI.Text(f, "body", 11, UI.C.faint)
+  f.count:SetPoint("BOTTOMRIGHT", 0, 0)
+  f.area.count = f.count
+  function f:Fill()
+    if not self.area.box:HasFocus() then self.area:SetText(Profile:Get(field)) end
+    self.count:SetText(#Profile:Get(field) .. "/" .. Profile.FIELDS[field])
+  end
+  return f
+end
+
+local function descriptionPane()
+  return textPane("DE", "What people see when they look at you. # Heading   *emphasis*   **strong**   > quote   ---   {icon:INV_Misc_Book_09}. "
+    .. "A blank line starts a new paragraph.")
+end
+
+local function historyPane()
+  return textPane("HI", "Your character's past: what people might know or find out. The same markup as the description.")
+end
+
+local function boundsPane()
+  local f = pane()
+  f.lead = UI.Text(f, "body", 12.5, UI.C.faint)
+  f.lead:SetPoint("TOPLEFT")
+  f.lead:SetPoint("RIGHT")
+  f.lead:SetText("Tell people what's welcome before they walk up. Shown as small marks on your sheet. "
+    .. "Injury, death, romance, crime and loss of control are the ones Total RP 3 shows too.")
+  f.rows = {}
+  local items = { { "y", "welcome" }, { "a", "ask first" }, { "n", "not for me" }, { "-", "not shown" } }
+  for i, b in ipairs(Profile.BOUNDS) do
+    local label = UI.Text(f, "body", 14)
+    label:SetPoint("TOPLEFT", 0, -40 - (i - 1) * 34)
+    label:SetText(b[2])
+    local seg = UI.Segmented(f, items, function(v) Profile:SetBound(i, v) end)
+    seg:SetPoint("TOPLEFT", 160, -36 - (i - 1) * 34)
+    f.rows[i] = seg
+  end
+  local top = -40 - #Profile.BOUNDS * 34 - 10
+  local label = UI.Text(f, "body", 14)
+  label:SetPoint("TOPLEFT", 0, top)
+  label:SetText("Experience")
+  local exp = {}
+  for _, e in ipairs(Profile.EXPERIENCE) do exp[#exp + 1] = { e, e, Profile.EXPERIENCE_HELP[e] } end
+  f.exp = UI.Segmented(f, exp, function(v) Profile:SetOption("experience", v) end)
+  f.exp:SetPoint("TOPLEFT", 160, top + 4)
+  function f:Fill()
+    local p = Profile:Current()
+    local bounds = p.bounds or ""
+    for i, seg in ipairs(self.rows) do
+      local v = bounds:sub(i, i)
+      seg:Select(Profile.BOUND_WORD[v] and v or "-", true)
+    end
+    self.exp:Select(p.experience or "Casual", true)
   end
   return f
 end
@@ -290,55 +399,6 @@ local function glancesPane()
   return f
 end
 
-local function descriptionPane()
-  local f = pane()
-  f.lead = UI.Text(f, "body", 12.5, UI.C.faint)
-  f.lead:SetPoint("TOPLEFT")
-  f.lead:SetPoint("RIGHT")
-  f.lead:SetText("# Heading   ## Smaller heading   *emphasis*   **strong**   > quote   {icon:INV_Misc_Book_09}. A blank line starts a new paragraph.")
-  f.area = UI.TextArea(f, Profile.FIELDS.DE, function(text) Profile:Set("DE", text) end)
-  f.area:SetPoint("TOPLEFT", 0, -38)
-  f.area:SetPoint("BOTTOMRIGHT", 0, 20)
-  f.count = UI.Text(f, "body", 11, UI.C.faint)
-  f.count:SetPoint("BOTTOMRIGHT", 0, 0)
-  f.area.count = f.count
-  function f:Fill()
-    if not self.area.box:HasFocus() then self.area:SetText(Profile:Get("DE")) end
-    self.count:SetText(#Profile:Get("DE") .. "/" .. Profile.FIELDS.DE)
-  end
-  return f
-end
-
-local function boundsPane()
-  local f = pane()
-  f.lead = UI.Text(f, "body", 12.5, UI.C.faint)
-  f.lead:SetPoint("TOPLEFT")
-  f.lead:SetText("Tell people what's welcome before they walk up. Shown as small marks on your sheet; words on hover.")
-  f.rows = {}
-  local items = { { "y", "welcome" }, { "a", "ask first" }, { "n", "not for me" } }
-  for i, b in ipairs(Profile.BOUNDS) do
-    local label = UI.Text(f, "body", 14)
-    label:SetPoint("TOPLEFT", 0, -30 - (i - 1) * 36)
-    label:SetText(b[2])
-    local seg = UI.Segmented(f, items, function(v) Profile:SetBound(i, v) end)
-    seg:SetPoint("TOPLEFT", 160, -26 - (i - 1) * 36)
-    f.rows[i] = seg
-  end
-  local label = UI.Text(f, "body", 14)
-  label:SetPoint("TOPLEFT", 0, -30 - #Profile.BOUNDS * 36 - 10)
-  label:SetText("Experience")
-  local exp = {}
-  for _, e in ipairs(Profile.EXPERIENCE) do exp[#exp + 1] = { e, e } end
-  f.exp = UI.Segmented(f, exp, function(v) Profile:SetOption("experience", v) end)
-  f.exp:SetPoint("TOPLEFT", 160, -26 - #Profile.BOUNDS * 36 - 10)
-  function f:Fill()
-    local p = Profile:Current()
-    local bounds = (p.bounds or "aaaaa")
-    for i, seg in ipairs(self.rows) do seg:Select(bounds:sub(i, i), true) end
-    self.exp:Select(p.experience or "Casual", true)
-  end
-  return f
-end
 
 local function settingsPane()
   local f = pane()
@@ -411,15 +471,19 @@ local function build()
     Profile:Wear(id)
     Editor:Refresh()
   end)
-  tabs = UI.Tabs(win, { { "identity", "Identity" }, { "glances", "Glances" }, { "desc", "Description" },
-    { "bounds", "Boundaries" }, { "settings", "Settings" } }, function(key) tab = key Editor:Refresh() end)
+  tabs = UI.Tabs(win, { { "identity", "Identity" }, { "details", "Details" }, { "glances", "Glances" },
+    { "desc", "Description" }, { "history", "History" }, { "bounds", "Boundaries" }, { "settings", "Settings" } },
+    function(key) tab = key Editor:Refresh() end)
   tabs:SetPoint("TOPLEFT", 12, -100)
   tabs:SetPoint("TOPRIGHT", -12, -100)
-  panes = { identity = identityPane(), glances = glancesPane(), desc = descriptionPane(), bounds = boundsPane(), settings = settingsPane() }
+  panes = { identity = identityPane(), details = detailsPane(), glances = glancesPane(), desc = descriptionPane(),
+    history = historyPane(), bounds = boundsPane(), settings = settingsPane() }
   buildPreview()
   local foot = UI.Text(win, "body", 12, UI.C.faint)
   foot:SetPoint("BOTTOMLEFT", 16, 14)
-  foot:SetText("Speaks the Mary Sue Protocol: Total RP 3 and MyRolePlay users see your name, title, status, currently, OOC and description too.")
+  foot:SetPoint("RIGHT", -150, 0)
+  foot:SetWordWrap(false)
+  foot:SetText("Total RP 3, MyRolePlay and XRP users see this profile too, and you see theirs.")
   local rule = UI.Rule(win)
   rule:SetPoint("BOTTOMLEFT", 0, 38)
   rule:SetPoint("BOTTOMRIGHT", 0, 38)

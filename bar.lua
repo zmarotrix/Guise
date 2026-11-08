@@ -94,7 +94,7 @@ function Bar:Update()
   bar.edit:SetPoint("LEFT", bar.sheet, "RIGHT", 2, 0)
   bar.dir:SetPoint("LEFT", bar.edit, "RIGHT", 2, 0)
   bar:SetWidth(status:GetWidth() + 3 * 30 + 16)
-  bar:SetShown(G.db.settings.bar and not G.Quiet())
+  bar:SetShown(G.db.settings.bar and not G.Quiet() and not G.Comms.standby)
   if minimap then minimap:SetShown(G.db.settings.minimap) end
 end
 
@@ -148,6 +148,9 @@ local function buildMinimap()
     GameTooltip:AddLine("Left-click: your profile", 1, 1, 1)
     GameTooltip:AddLine("Right-click: directory", 1, 1, 1)
     GameTooltip:AddLine("Status: " .. Profile.STATUS_LABEL[Profile:Status()], 0.7, 0.66, 0.57)
+    if G.Comms.standby then
+      GameTooltip:AddLine("Paused: " .. G.Comms.standby .. " is handling profiles.", 0.88, 0.44, 0.42, true)
+    end
     GameTooltip:Show()
   end)
   minimap:SetScript("OnLeave", function() GameTooltip:Hide() end)

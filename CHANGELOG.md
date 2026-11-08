@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0 (2026-11-07)
+
+Works with the other roleplay add-ons. Passed its harness; not yet played in game.
+
+- **Talks through LibMSP and Chomp**, embedded unchanged: the same libraries and wire format (MSP2) as Total RP 3, MyRolePlay and XRP.
+  0.1 spoke the 2011 MSP format, which all of them now ignore, so it couldn't reach anyone but another Guise.
+- Fields written and read the way those add-ons do it: colour inside the name and class, glances in Total RP 3's format, FC and FR
+  codes as they use them (FR 4 is "guide"), boundaries as RI/RD/RR/RM/RO, relationship status, personality traits (read), heights and
+  weights in centimetres and kilograms.
+- New profile fields: prefix, profile icon, nickname, house, motto, weight, home, birthplace, history, relationship status. Boundaries
+  gain crime and loss of control and a "not shown" choice. Experience is now new, casual, veteran or guide.
+- The editor gains Details and History tabs. The sheet shows the new fields, a profile icon, and personality traits from Total RP 3 profiles.
+- Descriptions keep colours and game icons from other add-ons; Total RP 3's "#Heading" and "---" and MyRolePlay's line breaks render.
+- Steps aside, with a message, when Total RP 3, MyRolePlay, XRP or another MSP add-on is running for the character.
+- Names: a unit is known by the name Chomp gives it ("First Last" on Forever), and a first name alone is never turned into a guess.
+- 0.1 profiles are upgraded (boundary order, "Regular" experience becomes Casual).
+
 ## 0.1.0 (2026-11-07)
 
 First build: Stage 1 of `docs/guise-v1.md`. Passed its harness; not yet played in game.

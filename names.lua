@@ -22,16 +22,24 @@ function Names:Learn(full, guid)
   end
 end
 
----The full name for a unit, or nil. Never raises on a secret value.
+---The name LibMSP knows a unit by ("First Last" on Forever), or nil. Never raises on a secret value.
 function Names:ForUnit(unit)
   if not unit or G.IsSecret(unit) then return nil end
+  local guid = G.Call("UnitGUID", unit)
+  -- what Total RP 3 and XRP use: UnitFullName, merged the way Chomp merges names
+  -- On Forever a name without a surname would be merged with the realm into a name nobody has, so it isn't used
+  local name, realm = G.Call("UnitFullName", unit)
+  local regional = G.Call("RegionalUniqueNamesEnabled")
+  local key = name and (not regional or Text.IsFull(name)) and G.Comms and G.Comms.Key(name, realm)
+  if key then
+    if guid then self.byGuid[guid] = key end
+    return key
+  end
   local full = G.Call("GetUnitName", unit, true)
   if Text.IsFull(full) then
-    local guid = G.Call("UnitGUID", unit)
     if guid then self.byGuid[guid] = full end
     return full
   end
-  local guid = G.Call("UnitGUID", unit)
   if guid and self.byGuid[guid] then return self.byGuid[guid] end
   local first = Text.Short(full or G.Call("UnitName", unit))
   local known = first and self.byFirst[first]
@@ -40,7 +48,7 @@ function Names:ForUnit(unit)
 end
 
 function Names:IsMe(name)
-  return name ~= nil and name == G.Call("GetUnitName", "player", true)
+  return name ~= nil and G.Comms ~= nil and name == G.Comms:Me()
 end
 
 -- every chat line names its sender in full, with a GUID: the cheapest way to learn who's who

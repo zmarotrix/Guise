@@ -34,12 +34,18 @@ end
 ---Stores one received field. Returns true if it changed.
 function Cache:Set(name, field, ver, value)
   local p = self:Ensure(name)
+  if type(ver) ~= "number" then ver = nil end
+  if field == "TT" then
+    local changed = p.tt ~= ver
+    p.tt = ver
+    return changed
+  end
   local limit = Text.LIMITS[field] or Text.DEFAULT_LIMIT
   value = Text.Cap(value or "", limit)
-  local changed = p.f[field] ~= value or (p.v[field] or 0) ~= ver
-  p.f[field] = value ~= "" and value or nil
-  p.v[field] = ver > 0 and ver or nil
-  if field == "TT" then p.tt = ver > 0 and ver or nil end
+  if value == "" then value = nil end
+  local changed = p.f[field] ~= value or p.v[field] ~= ver
+  p.f[field] = value
+  p.v[field] = ver
   return changed
 end
 
@@ -117,16 +123,26 @@ end
 
 G:Listen("GUISE_LOGIN", function() Cache:Trim() end)
 
+
 -------------------------------------------------------------------------------------------
 -- A profile, ready to show: every string made safe. Used by the tooltip, the strip, the sheet and the directory.
+-- Reads what Total RP 3, MyRolePlay, XRP and Guise send alike (msp.lua lists the conventions).
 -------------------------------------------------------------------------------------------
 
-local function plain(f, field, line)
+local function line(f, field)
   local s = f[field]
   if not s or s == "" then return nil end
-  local limit = Text.LIMITS[field]
-  local out = line and Text.Line(s, limit) or Text.Plain(s, limit)
-  return out ~= "" and out or nil
+  s = MSP.SplitColor(s)
+  s = Text.Line(s, Text.LIMITS[field])
+  return s ~= "" and s or nil
+end
+
+local function bound(f, i, b, xb)
+  local fromMsp = b[3] and MSP.BOUND_FROM[f[b[3]] or ""]
+  if fromMsp then return fromMsp end
+  local fromXB = xb and xb:sub(i, i)
+  if fromXB and Profile.BOUND_WORD[fromXB] then return fromXB end
+  return "-"
 end
 
 ---View of a person's profile. For yourself, pass name = nil and own = true.
@@ -140,44 +156,66 @@ function Cache:View(name, own)
     if not person then return nil end
     f = person.f
   end
-  local rawName, color = Text.SplitNameColor(f.NA or "")
+  local rawName, nameColor = MSP.SplitColor(f.NA or "")
+  local _, classColor = MSP.SplitColor(f.RC or "")
+  local prefix = line(f, "PX")
+  -- some add-ons put the prefix in the name too: show it once
+  if prefix and rawName:sub(1, #prefix + 1) == prefix .. " " then rawName = rawName:sub(#prefix + 2) end
   local view = {
     name = name, own = own,
     rpName = Text.Line(rawName, 60),
-    color = Text.Hex(f.XC) or color or nil,
-    title = plain(f, "NT", true),
-    house = plain(f, "NH", true),
-    nickname = plain(f, "NI", true),
-    pronouns = plain(f, "PN", true),
-    oocPronouns = plain(f, "XP", true),
-    race = plain(f, "RA", true),
-    class = plain(f, "RC", true),
-    age = plain(f, "AG", true), height = plain(f, "AH", true), eyes = plain(f, "AE", true), weight = plain(f, "AW", true),
-    motto = plain(f, "MO", true), home = plain(f, "HH", true), birthplace = plain(f, "HB", true),
-    currently = plain(f, "CU", true),
-    ooc = plain(f, "CO", true),
+    prefix = prefix,
+    color = nameColor or classColor or (own and Profile.ClassColor()) or nil,
+    title = line(f, "NT"),
+    house = line(f, "NH"),
+    nickname = line(f, "NI"),
+    motto = line(f, "MO"),
+    pronouns = line(f, "PN"),
+    oocPronouns = line(f, "XP"),
+    race = line(f, "RA"),
+    class = line(f, "RC"),
+    age = line(f, "AG"),
+    height = MSP.Units("AH", line(f, "AH")),
+    weight = MSP.Units("AW", line(f, "AW")),
+    eyes = line(f, "AE"),
+    eyeColor = select(2, MSP.SplitColor(f.AE or "")),
+    home = line(f, "HH"),
+    birthplace = line(f, "HB"),
+    guildName = line(f, "PG"), guildRank = line(f, "PR"),
+    voice = line(f, "PV"),
+    currently = line(f, "CU"),
+    ooc = line(f, "CO"),
+    icon = f.IC and tostring(f.IC):match("^[%w_]+$") or nil,
     status = MSP.STATUS[f.FC or ""],
     statusText = (not MSP.STATUS[f.FC or ""] and f.FC and f.FC ~= "0") and Text.Line(f.FC, 30) or nil,
-    style = MSP.STYLE[f.FR or ""] or ((f.FR and f.FR ~= "" and f.FR ~= "0") and Text.Line(f.FR, 30) or nil),
+    experience = MSP.EXPERIENCE[f.FR or ""] or ((f.FR and f.FR ~= "" and f.FR ~= "0") and Text.Line(f.FR, 30) or nil),
+    relationship = MSP.RELATIONSHIP[tonumber(f.RS or "") or 0],
+    trial = f.TR == "1" or f.TR == "2",
     mature = f.XM == "1",
     addon = f.VA and Text.Line(f.VA, 120) or nil,
     description = f.DE, history = f.HI,
+    traits = MSP.DecodeTraits(f.PS),
     glances = {},
     note = person.note, rel = person.rel, hidden = person.hidden,
     seen = person.seen, zone = person.zone,
     guise = f.VA ~= nil and f.VA:find("Guise/", 1, true) ~= nil,
   }
   if view.rpName == "" then view.rpName = name and Text.Line(name, 60) or "" end
-  for _, g in ipairs(Profile.DecodeGlances(f.PE)) do
+  for _, g in ipairs(MSP.DecodeGlances(f.PE)) do
     view.glances[#view.glances + 1] = {
-      icon = g.icon:gsub("[^%w_]", ""), title = Text.Line(g.title, 40), text = Text.Plain(g.text, 300),
+      icon = (g.icon:gsub("[^%w_]", "")), title = Text.Line(g.title, 40), text = Text.Rich(g.text, 600),
     }
   end
-  local bounds = f.XB
-  if type(bounds) == "string" and bounds:match("^[yan]+$") then
-    view.bounds = {}
-    for i, b in ipairs(Profile.BOUNDS) do view.bounds[i] = { key = b[1], label = b[2], value = bounds:sub(i, i) } end
+  local xb = f.XB
+  view.bounds = {}
+  local any = false
+  for i, b in ipairs(Profile.BOUNDS) do
+    local v = bound(f, i, b, xb)
+    if i == 1 and v == "-" and f.FC == "3" then v = "y" end   -- "looking for contact" means walk-ups are welcome
+    if v ~= "-" then any = true end
+    view.bounds[i] = { key = b[1], label = b[2], value = v }
   end
+  if not any then view.bounds = nil end
   return view
 end
 

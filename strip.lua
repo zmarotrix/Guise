@@ -47,7 +47,7 @@ end
 function Strip:Update()
   if not frame then return end
   frame:Hide()
-  if not G.db.settings.strip or InCombatLockdown() or G.Quiet() or not current then return end
+  if not G.db.settings.strip or InCombatLockdown() or G.Quiet() or Comms.standby or not current then return end
   local view = Cache:View(current ~= "self" and current or nil, current == "self")
   if not view or not Cache.Visible(view) or #view.glances == 0 then return end
   for i, b in ipairs(buttons) do

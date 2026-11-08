@@ -7,9 +7,11 @@ G.Text = Text
 
 -- the most Guise keeps of any field, from anyone (characters, not bytes)
 Text.LIMITS = {
-  NA = 60, NT = 60, NI = 40, NH = 60, PN = 30, XP = 30, AG = 30, AH = 40, AE = 40, AW = 40, RA = 40, RC = 40,
-  CU = 200, CO = 200, MO = 120, HH = 60, HB = 60, DE = 8000, HI = 8000, PE = 2000, XB = 10, XM = 1, XC = 6,
-  FR = 30, FC = 30, VA = 120, VP = 4, GU = 40, GS = 2, GC = 20, GR = 30, TT = 0,
+  NA = 100, PX = 40, NT = 120, NI = 60, NH = 80, MO = 200, PN = 40, XP = 40, AG = 40, AH = 60, AE = 60, AW = 60,
+  RA = 60, RC = 80, HH = 80, HB = 80, PG = 80, PR = 60, PV = 80, CU = 300, CO = 300,
+  DE = 16000, HI = 16000, PE = 4000, PS = 4000, MU = 120, IC = 120,
+  XB = 7, XM = 1, RS = 2, RI = 2, RD = 2, RR = 2, RM = 2, RO = 2, TR = 2,
+  FR = 40, FC = 40, VA = 200, VP = 4, GU = 40, GS = 2, GC = 20, GR = 30, GF = 20,
 }
 Text.DEFAULT_LIMIT = 200
 
@@ -70,20 +72,45 @@ function Text.IsFull(name)
 end
 
 -------------------------------------------------------------------------------------------
+-- Rich text from other players: the safe subset other RP add-ons use in descriptions and glances.
+-- Colour codes (|cffrrggbb ... |r) and game icons (|TInterface\Icons\name:..|t or |T<file id>:..|t) are kept; every other
+-- escape code (links, atlases, keybind and protected text) shows as plain text.
+-------------------------------------------------------------------------------------------
+
+local function texture(spec)
+  local path = spec:match("^([^:]+)")
+  if not path then return "" end
+  local icon = path:match("^[Ii]nterface[\\/][Ii]cons[\\/]([%w_]+)$")
+  if icon then return "|TInterface\\Icons\\" .. icon .. ":18:18|t" end
+  if path:match("^%d+$") then return "|T" .. path .. ":18:18|t" end
+  return ""
+end
+
+function Text.Rich(s, limit)
+  s = Text.Plain(s, limit or Text.DEFAULT_LIMIT)
+  s = s:gsub("||c(%x%x%x%x%x%x%x%x)", "|c%1"):gsub("||r", "|r")
+  s = s:gsub("||T([^|]-)||t", texture)
+  return s .. "|r"
+end
+
+-------------------------------------------------------------------------------------------
 -- Description markup -> SimpleHTML
---   # Heading, ## Smaller heading, > quote, blank line = new paragraph, *emphasis*, **strong**, {icon:name}
--- Total RP 3's own tags ({h1}..{/h1}, {h2}, {h3}, {p:c}, {col:rrggbb}, {img:...}, {link*...}) are understood or dropped.
+--   #Heading or # Heading, ## Smaller heading, > quote, --- (a divider), a blank line starts a paragraph and a single line
+--   break stays one; *emphasis*, **strong**, {icon:name}.
+-- Total RP 3 sends "#Physical Description" headings and "---" between sections; MyRolePlay sends plain text with line
+-- breaks; Total RP 3's own tags ({h1}..{/h1}, {col:rrggbb}, {img:...}, {link*...}) are understood or dropped.
 -------------------------------------------------------------------------------------------
 
 local function escapeHtml(s)
   return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
 end
 
-local EMPHASIS, STRONG, QUOTE = "e8dcc6", "ffffff", "b3a892"
+local EMPHASIS, STRONG, QUOTE, RULE = "e8dcc6", "ffffff", "b3a892", "4c4359"
+local BREAK = "\2"      -- a line break inside a paragraph, until it becomes <br/>
 
 local function inline(s)
   s = s:gsub("%*%*(.-)%*%*", function(t) return "|cff" .. STRONG .. t .. "|r" end)
-  s = s:gsub("%*(.-)%*", function(t) return "|cff" .. EMPHASIS .. t .. "|r" end)
+  s = s:gsub("%*([^%*\2]-)%*", function(t) return "|cff" .. EMPHASIS .. t .. "|r" end)
   s = s:gsub("{icon:([%w_]+)}", function(name) return "|TInterface\\Icons\\" .. name .. ":16:16|t" end)
   return s
 end
@@ -91,32 +118,37 @@ end
 local function fromTRP3(s)
   s = s:gsub("{h([123])[^}]*}(.-){/h%1}", function(level, t) return "\n" .. string.rep("#", tonumber(level)) .. " " .. t .. "\n" end)
   s = s:gsub("{icon:([%w_]+):?%d*}", "{icon:%1}")
-  s = s:gsub("{col:%x+}", ""):gsub("{/col}", "")
+  s = s:gsub("{col:(%x%x%x%x%x%x)}", "|cff%1"):gsub("{/col}", "|r")
   s = s:gsub("{/?p[^}]*}", "\n")
   s = s:gsub("{img:[^}]*}", ""):gsub("{link%*[^}]*}", ""):gsub("{twitter%*[^}]*}", "")
   return s
 end
 
----Markup -> a SimpleHTML document. Anything a stranger wrote is escaped first; only Guise's own codes are added.
+---Markup -> a SimpleHTML document. A stranger's text is escaped first; only safe colour and icon codes survive.
 function Text.Html(src, limit)
   src = Text.Cap(src, limit or Text.LIMITS.DE)
   src = fromTRP3(src)
-  src = src:gsub("|", "||")
+  src = Text.Rich(src, limit or Text.LIMITS.DE):gsub("|r$", "")
+  src = src:gsub(BREAK, "")
   local out, para = { "<html><body>" }, {}
   local function flush()
     if #para > 0 then
-      out[#out + 1] = "<p>" .. inline(escapeHtml(table.concat(para, " "))) .. "</p><br/>"
+      local body = inline(escapeHtml(table.concat(para, BREAK))):gsub(BREAK, "<br/>")
+      out[#out + 1] = "<p>" .. body .. "|r</p><br/>"
       para = {}
     end
   end
   for line in (src .. "\n"):gmatch("([^\n]*)\n") do
     local trimmed = line:match("^%s*(.-)%s*$")
-    local level, heading = trimmed:match("^(#+)%s+(.+)$")
+    local level, heading = trimmed:match("^(#+)%s*(.+)$")
     local quote = trimmed:match("^>%s?(.*)$")
     if level then
       flush()
       local tag = #level == 1 and "h1" or "h2"
-      out[#out + 1] = "<" .. tag .. ">" .. inline(escapeHtml(heading)) .. "</" .. tag .. ">"
+      out[#out + 1] = "<" .. tag .. ">" .. inline(escapeHtml(heading)) .. "|r</" .. tag .. ">"
+    elseif trimmed:match("^%-%-%-+$") then
+      flush()
+      out[#out + 1] = "<p align=\"center\">|cff" .. RULE .. "~  ~  ~|r</p><br/>"
     elseif quote then
       flush()
       out[#out + 1] = "<p>|cff" .. QUOTE .. "    " .. inline(escapeHtml(quote)) .. "|r</p>"
