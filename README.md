@@ -70,10 +70,29 @@ will see it.
 | **XRP** | Yes, both ways | LibMSP, same fields |
 | Total RP 2, GnomTEC Badge, flagRSP | If anyone runs them | Old add-ons. Anything still speaking current MSP works |
 | **TurtleRP** | No | Turtle WoW only, with no Forever version. Its way of talking (a visible chat channel the add-on types into for you) is something Forever only allows on a key press |
-| rpTags, Macaroni RP | Not yet | They read Total RP 3's or MyRolePlay's own data, not LibMSP's |
+| Macaroni RP | Probably | It falls back to MSP data when Total RP 3 isn't there, and Guise's profiles live in LibMSP's shared table. Not yet checked against its code |
+| rpTags | No | Unmaintained since 2022 and built for retail 9.x. Its MyRolePlay module looks players up as "Name-Realm", which finds nobody on Forever, so it doesn't work there with any profile add-on |
+| Anything that reads LibMSP | Yes | Guise's profiles, and the ones it received, are in `msp.char` and `msp.my` like any MSP add-on's |
 
 **One profile add-on per character.** If Total RP 3, MyRolePlay or XRP is running too, Guise steps aside and says so, just as they do
 with each other. Two of them would answer every request twice. Turn off the one you don't want in the AddOns list.
+
+## For add-on authors
+
+Read LibMSP's `msp` table as you would for any MSP add-on. Or, for text that's ready to show, use `GuiseAPI`:
+
+```lua
+if GuiseAPI and GuiseAPI.IsActive() then
+  local p = GuiseAPI.GetProfile("target")       -- a unit or "First Last"
+  if p then print(p.name, p.title, p.color, p.status) end
+  GuiseAPI.RegisterCallback("MyAddon", function(name) --[[ refresh ]] end)
+end
+```
+
+`GetProfile` returns a copy with every string safe to show: name, prefix, title, colour, status, pronouns, currently, OOC, details, glances,
+and more (the list is at the top of `api.lua`). It respects the player's choices: for a profile they hid, or a mature one they haven't chosen to
+see, only the name, colour and status come back, with `restricted = true`. `GuiseAPI.Request(nameOrUnit, "tooltip" | "full")` asks for a profile,
+paced like everything else Guise sends.
 
 ## Not in this version
 RP names in chat, speech colour in emotes, RP names on nameplates, a "nearby" view from a shared zone, and importing a TurtleRP

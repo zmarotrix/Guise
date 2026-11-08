@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 (2026-11-07)
+
+- **GuiseAPI**, for other add-ons: `GetProfile(nameOrUnit)` gives ready-to-show, safe text (colour split out, glances decoded) and respects
+  hidden and mature profiles; plus `NameForUnit`, `Request`, `RegisterCallback`, `IsActive`. Documented in the README and `api.lua`.
+- Checked that add-ons reading LibMSP's shared table see Guise's profiles, including ones kept from earlier sessions, which reach `msp.char`
+  as soon as anyone looks.
+- Compatibility notes: rpTags doesn't run on Forever with any profile add-on (unmaintained since 2022, "Name-Realm" lookups). Macaroni RP's
+  MSP fallback should see Guise, not yet checked against its code.
+
 ## 0.2.0 (2026-11-07)
 
 Works with the other roleplay add-ons. Passed its harness; not yet played in game.

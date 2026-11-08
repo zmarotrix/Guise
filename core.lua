@@ -9,7 +9,7 @@ local ADDON, G = ...
 G = G or {}
 Guise = G
 G.name = ADDON or "Guise"
-G.version = "0.2.0"
+G.version = "0.2.1"
 G.ACCENT = "c9a0ff"
 
 -------------------------------------------------------------------------------------------

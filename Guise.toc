@@ -2,7 +2,7 @@
 ## Title: |cffc9a0ffGuise|r
 ## Notes: Roleplay profiles: see who someone's character is, and let them see yours. Speaks the Mary Sue Protocol through LibMSP, so Total RP 3, MyRolePlay and XRP users see you too. /guise
 ## Author: Maro
-## Version: 0.2.0
+## Version: 0.2.1
 ## X-License: All Rights Reserved
 ## Category: Roleplay
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
@@ -22,6 +22,7 @@ profile.lua
 cache.lua
 names.lua
 comms.lua
+api.lua
 ui.lua
 tooltip.lua
 strip.lua
