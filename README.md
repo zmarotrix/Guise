@@ -70,7 +70,7 @@ will see it.
 | **XRP** | Yes, both ways | LibMSP, same fields |
 | Total RP 2, GnomTEC Badge, flagRSP | If anyone runs them | Old add-ons. Anything still speaking current MSP works |
 | **TurtleRP** | No | Turtle WoW only, with no Forever version. Its way of talking (a visible chat channel the add-on types into for you) is something Forever only allows on a key press |
-| Macaroni RP | Probably | It falls back to MSP data when Total RP 3 isn't there, and Guise's profiles live in LibMSP's shared table. Not yet checked against its code |
+| Macaroni RP | No | Only its Total RP 3 path works. Its MSP fallback (0.3.0) reads `msp.char[name].NA` instead of `.field.NA` and looks people up by first name, so it shows nothing from MyRolePlay, XRP or Guise. It's also built for retail 12.1 |
 | rpTags | No | Unmaintained since 2022 and built for retail 9.x. Its MyRolePlay module looks players up as "Name-Realm", which finds nobody on Forever, so it doesn't work there with any profile add-on |
 | Anything that reads LibMSP | Yes | Guise's profiles, and the ones it received, are in `msp.char` and `msp.my` like any MSP add-on's |
 

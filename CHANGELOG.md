@@ -6,8 +6,8 @@
   hidden and mature profiles; plus `NameForUnit`, `Request`, `RegisterCallback`, `IsActive`. Documented in the README and `api.lua`.
 - Checked that add-ons reading LibMSP's shared table see Guise's profiles, including ones kept from earlier sessions, which reach `msp.char`
   as soon as anyone looks.
-- Compatibility notes: rpTags doesn't run on Forever with any profile add-on (unmaintained since 2022, "Name-Realm" lookups). Macaroni RP's
-  MSP fallback should see Guise, not yet checked against its code.
+- Compatibility notes: rpTags doesn't run on Forever with any profile add-on (unmaintained since 2022, "Name-Realm" lookups). Macaroni RP
+  0.3.0's MSP fallback can't show any MSP add-on's profiles (it reads the wrong place in LibMSP's table); only its Total RP 3 path works.
 
 ## 0.2.0 (2026-11-07)
 
