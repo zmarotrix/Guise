@@ -1,4 +1,8 @@
 <p align="center">
+  <img src=".github/banner.png" alt="Guise: Tell everyone who your character is, in every roleplay add-on." width="100%">
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/WoW%20Forever-1.60.1-c9a0ff?style=flat-square" alt="WoW Forever 1.60.1">
   <img src="https://img.shields.io/badge/status-not%20yet%20played%20in%20game-e98fd0?style=flat-square" alt="Status: not yet played in game">
   <img src="https://img.shields.io/badge/speaks-Mary%20Sue%20Protocol-2b2333?style=flat-square" alt="Speaks the Mary Sue Protocol">
